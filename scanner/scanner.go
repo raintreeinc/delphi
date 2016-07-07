@@ -41,7 +41,6 @@ type Scanner struct {
 	offset     int  // character offset
 	rdOffset   int  // reading offset (position after current character)
 	lineOffset int  // current line offset
-	insertSemi bool // insert a semicolon before next newline
 
 	// public state - ok to modify
 	ErrorCount int // number of errors encountered
@@ -90,8 +89,7 @@ func (s *Scanner) next() {
 type Mode uint
 
 const (
-	ScanComments    Mode = 1 << iota // return comments as COMMENT tokens
-	dontInsertSemis                  // do not automatically insert semicolons - for testing only
+	ScanComments Mode = 1 << iota // return comments as COMMENT tokens
 )
 
 // Init prepares the scanner s to tokenize the text src by setting the
@@ -124,7 +122,6 @@ func (s *Scanner) Init(file *token.File, src []byte, err ErrorHandler, mode Mode
 	s.offset = 0
 	s.rdOffset = 0
 	s.lineOffset = 0
-	s.insertSemi = false
 	s.ErrorCount = 0
 
 	s.next()
@@ -484,7 +481,7 @@ func (s *Scanner) scanRawString() string {
 }
 
 func (s *Scanner) skipWhitespace() {
-	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' && !s.insertSemi || s.ch == '\r' {
+	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' && true || s.ch == '\r' {
 		s.next()
 	}
 }
@@ -570,45 +567,29 @@ scanAgain:
 	pos = s.file.Pos(s.offset)
 
 	// determine token value
-	insertSemi := false
 	switch ch := s.ch; {
 	case isLetter(ch):
 		lit = s.scanIdentifier()
 		if len(lit) > 1 {
 			// keywords are longer than one letter - avoid lookup otherwise
 			tok = token.Lookup(lit)
-			switch tok {
-			case token.IDENT:
-				insertSemi = true
-			}
 		} else {
-			insertSemi = true
 			tok = token.IDENT
 		}
 	case '0' <= ch && ch <= '9':
-		insertSemi = true
 		tok, lit = s.scanNumber(false)
 	default:
 		s.next() // always make progress
 		switch ch {
 		case -1:
-			if s.insertSemi {
-				s.insertSemi = false // EOF consumed
-				return pos, token.SEMICOLON, "\n"
-			}
 			tok = token.EOF
 		case '\n':
-			// we only reach here if s.insertSemi was
-			// set in the first place and exited early
-			// from s.skipWhitespace()
-			s.insertSemi = false // newline consumed
+			// exited early from s.skipWhitespace()
 			return pos, token.SEMICOLON, "\n"
 		case '\'', '#':
-			insertSemi = true
 			tok = token.STRING
 			lit = s.scanString()
 		case '`':
-			insertSemi = true
 			tok = token.STRING
 			lit = s.scanRawString()
 		case ':':
@@ -623,12 +604,10 @@ scanAgain:
 		case '(':
 			tok = token.LPAREN
 		case ')':
-			insertSemi = true
 			tok = token.RPAREN
 		case '[':
 			tok = token.LBRACK
 		case ']':
-			insertSemi = true
 			tok = token.RBRACK
 		case '+':
 			tok = token.ADD
@@ -639,18 +618,9 @@ scanAgain:
 		case '/':
 			if s.ch == '/' {
 				// comment
-				if s.insertSemi && s.findLineEnd() {
-					// reset position to the beginning of the comment
-					s.ch = '/'
-					s.offset = s.file.Offset(pos)
-					s.rdOffset = s.offset + 1
-					s.insertSemi = false // newline consumed
-					return pos, token.SEMICOLON, "\n"
-				}
 				comment := s.scanComment()
 				if s.mode&ScanComments == 0 {
 					// skip comment
-					s.insertSemi = false // newline consumed
 					goto scanAgain
 				}
 				tok = token.COMMENT
@@ -673,14 +643,9 @@ scanAgain:
 			if ch != bom {
 				s.error(s.file.Offset(pos), fmt.Sprintf("illegal character %#U", ch))
 			}
-			insertSemi = s.insertSemi // preserve insertSemi info
 			tok = token.ILLEGAL
 			lit = string(ch)
 		}
 	}
-	if s.mode&dontInsertSemis == 0 {
-		s.insertSemi = insertSemi
-	}
-
 	return
 }
