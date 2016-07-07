@@ -31,7 +31,8 @@ const (
 	IDENT
 	INTEGER // 12, $12A
 	FLOAT   // 0.412, -1e6
-	STRING  // 'x', #12, #12#13, #$1A, ^C, 'hello world'
+	CHAR    // #13, #$1A, ^C
+	STRING  // 'x', 'hello world'
 	literal_end
 
 	operator_beg
@@ -55,15 +56,14 @@ const (
 	COLON     // :
 	COMMA     // ,
 	PERIOD    // .
+	ELLIPSIS  // ..
 	SEMICOLON // ;
 
 	LPAREN // (
 	LBRACK // [
-	LANGLE // <
 
 	RPAREN // )
 	RBRACK // ]
-	RANGLE // >
 	operator_end
 
 	keyword_beg
@@ -202,6 +202,7 @@ var tokens = [...]string{
 	IDENT:   "IDENT",
 	INTEGER: "INTEGER",
 	FLOAT:   "FLOAT",
+	CHAR:    "CHAR",
 	STRING:  "STRING",
 
 	AT:  "@",
@@ -223,15 +224,14 @@ var tokens = [...]string{
 	COLON:     ":",
 	COMMA:     ",",
 	PERIOD:    ".",
+	ELLIPSIS:  "..",
 	SEMICOLON: ";",
 
 	LPAREN: "(",
 	LBRACK: "[",
-	LANGLE: "<",
 
 	RPAREN: ")",
 	RBRACK: "]",
-	RANGLE: ">",
 
 	// Keywords
 	AND:            "and",

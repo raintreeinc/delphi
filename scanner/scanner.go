@@ -42,6 +42,9 @@ type Scanner struct {
 	rdOffset   int  // reading offset (position after current character)
 	lineOffset int  // current line offset
 
+	// lookbehind
+	lastTok token.Token
+
 	// public state - ok to modify
 	ErrorCount int // number of errors encountered
 }
@@ -81,6 +84,26 @@ func (s *Scanner) next() {
 		}
 		s.ch = -1 // eof
 	}
+}
+
+func (s *Scanner) peek() rune {
+	if s.rdOffset >= len(s.src) {
+		return -1
+	}
+	r, w := rune(s.src[s.rdOffset]), 1
+	switch {
+	case r == 0:
+		return -1
+	case r >= utf8.RuneSelf:
+		// not ASCII
+		r, w = utf8.DecodeRune(s.src[s.rdOffset:])
+		if r == utf8.RuneError && w == 1 {
+			return -1
+		} else if r == bom && s.offset > 0 {
+			return -1
+		}
+	}
+	return r
 }
 
 // A mode value is a set of flags (or 0).
@@ -224,11 +247,15 @@ func (s *Scanner) findLineEnd() bool {
 }
 
 func isLetter(ch rune) bool {
-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
 }
 
 func isDigit(ch rune) bool {
-	return '0' <= ch && ch <= '9' || ch >= utf8.RuneSelf && unicode.IsDigit(ch)
+	return '0' <= ch && ch <= '9'
+}
+
+func isHexDigit(ch rune) bool {
+	return ('0' <= ch && ch <= '9') || ('a' <= ch && ch <= 'f') || ('A' <= ch && ch <= 'F')
 }
 
 func (s *Scanner) scanIdentifier() string {
@@ -257,17 +284,10 @@ func (s *Scanner) scanMantissa(base int) {
 	}
 }
 
-func (s *Scanner) scanNumber(seenDecimalPoint bool) (token.Token, string) {
+func (s *Scanner) scanNumber() (token.Token, string) {
 	// digitVal(s.ch) < 10
 	offs := s.offset
 	tok := token.INTEGER
-
-	if seenDecimalPoint {
-		offs--
-		tok = token.FLOAT
-		s.scanMantissa(10)
-		goto exponent
-	}
 
 	if s.ch == '0' {
 		// int or float
@@ -311,7 +331,6 @@ fraction:
 		s.scanMantissa(10)
 	}
 
-exponent:
 	if s.ch == 'e' || s.ch == 'E' {
 		tok = token.FLOAT
 		s.next()
@@ -419,9 +438,8 @@ func (s *Scanner) scanRune() string {
 }
 
 func (s *Scanner) scanString() string {
-	// '"' opening already consumed
+	// '\'' opening already consumed
 	offs := s.offset - 1
-
 	for {
 		ch := s.ch
 		if ch == '\n' || ch < 0 {
@@ -429,12 +447,39 @@ func (s *Scanner) scanString() string {
 			break
 		}
 		s.next()
-		if ch == '"' {
+		if ch == '\'' {
+			if s.ch == '\'' {
+				s.next()
+			} else {
+				break
+			}
+		}
+	}
+
+	return string(s.src[offs:s.offset])
+}
+
+func (s *Scanner) scanChar() string {
+	// '#' opening already consumed
+	offs := s.offset - 1
+
+	hex := s.ch == '$'
+	if hex {
+		s.next()
+	}
+	for {
+		ch := s.ch
+		if ch == '\n' || ch < 0 {
+			s.error(offs, "char literal not terminated")
 			break
 		}
-		if ch == '\\' {
-			s.scanEscape('"')
+
+		if !isDigit(ch) {
+			if !hex || !isHexDigit(ch) {
+				break
+			}
 		}
+		s.next()
 	}
 
 	return string(s.src[offs:s.offset])
@@ -452,41 +497,13 @@ func stripCR(b []byte) []byte {
 	return c[:i]
 }
 
-func (s *Scanner) scanRawString() string {
-	// '`' opening already consumed
-	offs := s.offset - 1
-
-	hasCR := false
-	for {
-		ch := s.ch
-		if ch < 0 {
-			s.error(offs, "raw string literal not terminated")
-			break
-		}
-		s.next()
-		if ch == '`' {
-			break
-		}
-		if ch == '\r' {
-			hasCR = true
-		}
-	}
-
-	lit := s.src[offs:s.offset]
-	if hasCR {
-		lit = stripCR(lit)
-	}
-
-	return string(lit)
-}
-
 func (s *Scanner) skipWhitespace() {
-	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' && true || s.ch == '\r' {
+	for s.ch == ' ' || s.ch == '\t' || s.ch == '\n' || s.ch == '\r' {
 		s.next()
 	}
 }
 
-// Helper functions for scanning multi-byte tokens such as >> += >>= .
+// Helper functions for scanning multi-byte tokens such as >= <= ..
 // Different routines recognize different length tok_i based on matches
 // of ch_i. If a token ends in '=', the result is tok1 or tok3
 // respectively. Otherwise, the result is tok0 if there was no other
@@ -533,15 +550,10 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
 // token.EOF.
 //
 // If the returned token is a literal (token.IDENT, token.INTEGER, token.FLOAT,
-// token.IMAG, token.CHAR, token.STRING) or token.COMMENT, the literal string
-// has the corresponding value.
+// token.STRING) or token.COMMENT, the literal string has the corresponding
+// value.
 //
 // If the returned token is a keyword, the literal string is the keyword.
-//
-// If the returned token is token.SEMICOLON, the corresponding
-// literal string is ";" if the semicolon was present in the source,
-// and "\n" if the semicolon was inserted because of a newline or
-// at EOF.
 //
 // If the returned token is token.ILLEGAL, the literal string is the
 // offending character.
@@ -576,31 +588,55 @@ scanAgain:
 		} else {
 			tok = token.IDENT
 		}
-	case '0' <= ch && ch <= '9':
-		tok, lit = s.scanNumber(false)
+	case '0' <= ch && ch <= '9' || ch == '$':
+		tok, lit = s.scanNumber()
 	default:
 		s.next() // always make progress
 		switch ch {
 		case -1:
 			tok = token.EOF
-		case '\n':
-			// exited early from s.skipWhitespace()
-			return pos, token.SEMICOLON, "\n"
-		case '\'', '#':
+		case '\'':
 			tok = token.STRING
 			lit = s.scanString()
-		case '`':
-			tok = token.STRING
-			lit = s.scanRawString()
+			if len(lit) == 1 {
+				tok = token.CHAR
+			}
+		case '#':
+			tok = token.CHAR
+			lit = s.scanChar()
+		case '^':
+			if s.lastTok == token.IDENT || s.lastTok == token.RPAREN || s.lastTok == token.RBRACK {
+				// PChar(P)^, P^
+				tok = token.HAT
+			} else {
+				pch := s.peek()
+				// ^TRecord
+				if isLetter(s.ch) && (isLetter(pch) || isDigit(pch)) {
+					// FIXME: This misclassifies
+					//   type
+					//     T = record end;
+					//     PT = ^T;
+					// however it is very rare in practice
+					tok = token.HAT
+				} else {
+					tok = token.CHAR
+					lit = "^" + string(s.ch)
+					s.next()
+				}
+			}
 		case ':':
 			tok = s.switch2(token.COLON, token.ASSIGN)
 		case '.':
-			tok = token.PERIOD
+			if s.ch == '.' {
+				s.next()
+				tok = token.ELLIPSIS
+			} else {
+				tok = token.PERIOD
+			}
 		case ',':
 			tok = token.COMMA
 		case ';':
 			tok = token.SEMICOLON
-			lit = ";"
 		case '(':
 			tok = token.LPAREN
 		case ')':
@@ -630,8 +666,6 @@ scanAgain:
 			}
 		case '@':
 			tok = token.AT
-		case '^':
-			tok = token.HAT
 		case '<':
 			tok = s.switch3(token.LSS, token.LEQ, '>', token.NEQ)
 		case '>':
@@ -646,6 +680,11 @@ scanAgain:
 			tok = token.ILLEGAL
 			lit = string(ch)
 		}
+	}
+
+	// lookbehind token should ignore comments and compiler directives
+	if tok != token.COMMENT && tok != token.CDIRECTIVE {
+		s.lastTok = tok
 	}
 	return
 }
