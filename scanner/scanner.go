@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package scanner implements a scanner for Go source text.
+// Package scanner implements a scanner for Delphi source text.
 // It takes a []byte as source which can then be tokenized
 // through repeated calls to the Scan method.
 //
@@ -252,7 +252,7 @@ func (s *Scanner) findLineEnd() bool {
 				break
 			}
 		}
-		s.skipWhitespace() // s.insertSemi is set
+		s.skipWhitespace()
 		if s.ch < 0 || s.ch == '\n' {
 			return true
 		}
