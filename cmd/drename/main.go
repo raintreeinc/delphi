@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	"github.com/egonelbre/async"
+	"github.com/raintreeinc/delphi/internal/walk"
 	"github.com/raintreeinc/delphi/scanner"
 	"github.com/raintreeinc/delphi/token"
-	"github.com/raintreeinc/delphi/walk"
 )
 
 var (
