@@ -13,7 +13,6 @@ package scanner
 import (
 	"fmt"
 	"path/filepath"
-	"unicode/utf8"
 
 	"github.com/raintreeinc/delphi/token"
 )
@@ -62,20 +61,8 @@ func (s *Scanner) next() {
 			s.lineOffset = s.offset
 			s.file.AddLine(s.offset)
 		}
-		r, w := rune(s.src[s.rdOffset]), 1
-		switch {
-		case r == 0:
-			s.error(s.offset, "illegal character NUL")
-		case r >= utf8.RuneSelf:
-			// not ASCII
-			r, w = utf8.DecodeRune(s.src[s.rdOffset:])
-			if r == utf8.RuneError && w == 1 {
-				s.error(s.offset, "illegal UTF-8 encoding")
-			} else if r == bom && s.offset > 0 {
-				s.error(s.offset, "illegal byte order mark")
-			}
-		}
-		s.rdOffset += w
+		r := rune(s.src[s.rdOffset])
+		s.rdOffset += 1
 		s.ch = r
 	} else {
 		s.offset = len(s.src)
@@ -91,20 +78,7 @@ func (s *Scanner) peek() rune {
 	if s.rdOffset >= len(s.src) {
 		return -1
 	}
-	r, w := rune(s.src[s.rdOffset]), 1
-	switch {
-	case r == 0:
-		return -1
-	case r >= utf8.RuneSelf:
-		// not ASCII
-		r, w = utf8.DecodeRune(s.src[s.rdOffset:])
-		if r == utf8.RuneError && w == 1 {
-			return -1
-		} else if r == bom && s.offset > 0 {
-			return -1
-		}
-	}
-	return r
+	return rune(s.src[s.rdOffset])
 }
 
 // A mode value is a set of flags (or 0).
@@ -169,15 +143,11 @@ func (s *Scanner) scanComment(ch rune) string {
 	//     '/'  '/'
 
 	offs := s.offset - 1 // position of starting ch
-	hasCR := false
 
 	if ch == '/' && s.ch == '/' {
 		//-style comment
 		s.next()
 		for s.ch != '\n' && s.ch >= 0 {
-			if s.ch == '\r' {
-				hasCR = true
-			}
 			s.next()
 		}
 		goto exit
@@ -188,9 +158,6 @@ func (s *Scanner) scanComment(ch rune) string {
 		s.next()
 		for s.ch >= 0 {
 			ch := s.ch
-			if ch == '\r' {
-				hasCR = true
-			}
 			s.next()
 			if ch == '*' && s.ch == ')' {
 				s.next()
@@ -203,9 +170,6 @@ func (s *Scanner) scanComment(ch rune) string {
 	for s.ch >= 0 {
 		ch := s.ch
 		s.next()
-		if ch == '\r' {
-			hasCR = true
-		}
 		if ch == '}' {
 			goto exit
 		}
@@ -215,10 +179,6 @@ func (s *Scanner) scanComment(ch rune) string {
 
 exit:
 	lit := s.src[offs:s.offset]
-	if hasCR {
-		lit = stripCR(lit)
-	}
-
 	return string(lit)
 }
 
