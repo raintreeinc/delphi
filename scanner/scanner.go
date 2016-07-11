@@ -283,6 +283,11 @@ func (s *Scanner) scanNumber() (token.Token, string) {
 	// decimal int or float
 	s.scanMantissa(10)
 
+	// handle ellipsis, e.g. array[0..14]
+	if s.ch == '.' && s.peek() == '.' {
+		goto exit
+	}
+
 	if s.ch == '.' {
 		tok = token.FLOAT
 		s.next()

@@ -19,6 +19,11 @@ var tests = [...]elt{
 		T.HAT, T.IDENT}},
 	{`type PPInteger = ^PInteger;`, []T.Token{
 		T.TYPE, T.IDENT, T.EQL, T.HAT, T.IDENT, T.SEMICOLON}},
+	{`type TVector = array[0..2] of Integer;`, []T.Token{
+		T.TYPE, T.IDENT, T.EQL,
+		T.ARRAY,
+		T.LBRACK, T.INTEGER, T.ELLIPSIS, T.INTEGER, T.RBRACK,
+		T.OF, T.IDENT, T.SEMICOLON}},
 }
 
 func TestScanner_Scan(t *testing.T) {
