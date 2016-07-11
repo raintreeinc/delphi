@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+func issource(file string) bool {
+	ext := strings.ToLower(filepath.Ext(file))
+	return ext == ".pas" || ext == ".inc" || ext == ".dpr"
+}
+
 func istemp(name string) bool {
 	return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "~") || strings.HasSuffix(name, "~")
 }
@@ -30,17 +35,17 @@ func Glob(glob string, filenames chan string, errors chan error) {
 			errors <- err
 		}
 		if info.IsDir() {
-			err := filepath.Walk(glob, func(path string, info os.FileInfo, err error) error {
+			err := filepath.Walk(glob, func(file string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
-				if ext := strings.ToLower(filepath.Ext(path)); ext != ".pas" && ext != ".inc" {
+				if !issource(file) {
 					return nil
 				}
 				if istemp(info.Name()) {
 					return filepath.SkipDir
 				}
-				filenames <- path
+				filenames <- file
 				return nil
 			})
 			if err != nil {

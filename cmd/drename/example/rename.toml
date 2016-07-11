@@ -1,0 +1,18 @@
+
+# When you add "deprecated" to all variables it allows to cross-validate
+# and rename only the appropriate variables that Delphi thinks that reference
+# that variable. This is currently necessary because the renamer doesn't handle
+# context sensitivity properly. However this means you need to manually fix
+# some places where the deprecation warning doesn't trigger.
+
+DeprecationWarnings="example/warnings.log"
+
+# Here we define how to rename variables and where they are located.
+
+[unit.MathUtils]
+lg = "muLog2"
+sn = "muSin"
+cs = "muCos"
+
+[unit.Main]
+state = "TGlobalState"

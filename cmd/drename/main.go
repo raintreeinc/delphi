@@ -1,3 +1,12 @@
+// drename is inteded for batch renaming Delphi variables.
+//
+// This utility is useful for cleaning up or restructuring old and large code-bases.
+// Especially where you have conditional compiling.
+//
+// Warning: drename currently is not context-sensitive hence it may rename
+// more than you wanted. And mostly is hacked together to serve a particular
+// need. Eventually it will be adjusted to be context sensitive.
+
 package main
 
 import (
@@ -9,6 +18,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/BurntSushi/toml"
+
 	"github.com/egonelbre/async"
 	"github.com/raintreeinc/delphi/internal/walk"
 	"github.com/raintreeinc/delphi/scanner"
@@ -16,11 +27,10 @@ import (
 )
 
 var (
-	verbose = flag.Int("v", 0, "verbosity level")
-	mapping = flag.String("mapping", "", "file describing all renames")
-	unit    = flag.String("unit", "", "unit where the identifiers are defined")
-	nprocs  = flag.Int("procs", 8, "number of parallel parsers to use")
-	write   = flag.Bool("w", false, "write changes to files")
+	verbose   = flag.Int("v", 0, "verbosity level")
+	batchfile = flag.String("batch", "", "file describing all renames")
+	nprocs    = flag.Int("procs", 8, "number of parallel parsers to use")
+	write     = flag.Bool("w", false, "write changes to files")
 )
 
 func main() {
@@ -33,7 +43,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	mapping, err := LoadMapping(*mapping)
+	batch, err := LoadBatchFile(*batchfile)
 	if err != nil {
 		fmt.Printf("Error loading mapping: %s\n", err)
 		flag.PrintDefaults()
@@ -49,7 +59,7 @@ func main() {
 
 	async.Spawn(*nprocs, func(id int) {
 		for filename := range filenames {
-			err := process(mapping, filename)
+			err := process(batch, filename)
 			if err != nil {
 				errors <- fmt.Errorf("%v: %v", filename, err)
 			}
@@ -65,7 +75,7 @@ func main() {
 
 var rxTarget = regexp.MustCompile(`(?i)\brtScreenBuffer\b`)
 
-func process(mapping *Mapping, filename string) error {
+func process(batch *BatchRename, filename string) error {
 	src, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
@@ -73,99 +83,118 @@ func process(mapping *Mapping, filename string) error {
 
 	// Initialize the scanner.
 	var sc scanner.Scanner
-	fset := token.NewFileSet()                            // positions are relative to fset
-	file := fset.AddFile(filename, fset.Base(), len(src)) // register input "file"
+	fset := token.NewFileSet()
+	file := fset.AddFile(filename, fset.Base(), len(src))
 	sc.Init(file, src, func(pos token.Position, msg string) { fmt.Printf("%s\tERROR\t%s\n", pos, msg) }, 0)
 
-	renamer := &Renamer{
-		Unit:    *unit,
-		FileSet: fset,
-		Scanner: &sc,
-		Source:  src,
-		Output:  bytes.Buffer{},
-		Mapping: mapping,
-	}
-	renamer.Process()
+	var out bytes.Buffer
+	{ // main processing
+		uses := []string{}
+		start := 0
 
-	if !bytes.Equal(src, renamer.Output.Bytes()) {
-		fmt.Println("CHANGING", filename)
+		for {
+			pos, tok, lit := sc.Scan()
+
+			// emit unprocessed content
+			if offset := fset.Position(pos).Offset; start < offset {
+				out.Write(src[start:offset])
+				start = offset
+			}
+			if tok == token.EOF {
+				break
+			} else if tok != token.IDENT {
+				continue
+			}
+
+			lit = Canonical(lit)
+
+			// process uses list
+			if batch.IsUnit(lit) {
+				contains := false
+				for _, unit := range uses {
+					if unit == lit {
+						contains = true
+						break
+					}
+				}
+				if !contains {
+					uses = append(uses, Canonical(lit))
+				}
+				continue
+			}
+
+			// process replacements
+			if repl, ok := batch.Lookup(uses, lit); ok {
+				start += len(lit)
+				out.WriteString(repl)
+				continue
+			}
+		}
+	}
+
+	if !bytes.Equal(src, out.Bytes()) {
 		if *write {
-			ioutil.WriteFile(filename, renamer.Output.Bytes(), 0755)
+			fmt.Println("MODIFIED " + filename)
+			ioutil.WriteFile(filename, out.Bytes(), 0755)
+		} else if *verbose > 1 {
+			fmt.Println("<--- " + filename + " --->\n" + out.String())
+		} else {
+			fmt.Println("MODIFIES " + filename)
 		}
 	}
 	return nil
 }
 
-type Mapping struct {
-	Replace map[string]string
+type BatchRename struct {
+	Unit map[string]Mapping
 }
+type Mapping map[string]string
 
-type Renamer struct {
-	Unit    string
-	FileSet *token.FileSet
-	Scanner *scanner.Scanner
-	Source  []byte
-	Output  bytes.Buffer
-	Mapping *Mapping
-}
-
-func (renamer *Renamer) Process() {
-	found := renamer.Unit == ""
-	unit := strings.ToLower(renamer.Unit)
-
-	start := 0
-	for {
-		pos, tok, lit := renamer.Scanner.Scan()
-
-		offset := renamer.FileSet.Position(pos).Offset
-		if start < offset {
-			renamer.Output.Write(renamer.Source[start:offset])
-			start = offset
-		}
-		if tok == token.EOF {
-			break
-		}
-
-		if !found && tok == token.IDENT {
-			found = unit == strings.ToLower(lit)
-		}
-		if !found {
-			continue
-		}
-
-		if tok == token.IDENT {
-			if renamed, ok := renamer.Mapping.Replace[strings.ToLower(lit)]; ok {
-				start += len(lit)
-				renamer.Output.WriteString(renamed)
-			}
-		} else if tok == token.COMMENT {
-
-		}
-	}
-}
-
-func LoadMapping(file string) (*Mapping, error) {
-	m := &Mapping{make(map[string]string, 1000)}
-	data, err := ioutil.ReadFile(file)
+func LoadBatchFile(file string) (*BatchRename, error) {
+	m := &BatchRename{}
+	_, err := toml.DecodeFile(file, m)
 	if err != nil {
 		return nil, err
 	}
-	rxSeparator := regexp.MustCompile("[\t ]+")
-	text := string(data)
-	for _, line := range strings.Split(text, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || line[0] == '#' {
-			continue
-		}
 
-		toks := rxSeparator.Split(line, -1)
-		if len(toks) == 0 {
-			continue
-		} else if len(toks) != 2 {
-			return nil, fmt.Errorf("invalid number of replacements for %v", toks)
-		}
-		from, to := strings.TrimSpace(toks[0]), strings.TrimSpace(toks[1])
-		m.Replace[strings.ToLower(from)] = to
-	}
+	m.canonicalize()
 	return m, nil
 }
+
+// Converts all source identifiers to Canonical form
+// NB: calling this is necessary for IsUnit/Lookup to work properly
+func (batch *BatchRename) canonicalize() {
+	units := make(map[string]Mapping, len(batch.Unit))
+	for unit, mapping := range batch.Unit {
+		cmapping := make(Mapping, len(mapping))
+		for ident, repl := range mapping {
+			cmapping[Canonical(ident)] = repl
+		}
+		units[Canonical(unit)] = cmapping
+	}
+	batch.Unit = units
+}
+
+// Looks whether an identifier is potentially a unit
+// NB: ident must be both in canonical form.
+func (batch *BatchRename) IsUnit(ident string) bool {
+	_, ok := batch.Unit[ident]
+	return ok
+}
+
+// Looks whether an identifier must be replaced.
+// NB: uses and ident must be both in canonical form.
+func (batch *BatchRename) Lookup(uses []string, ident string) (replacement string, ok bool) {
+	for _, unit := range uses {
+		mapping, ok := batch.Unit[unit]
+		if !ok {
+			continue
+		}
+		if repl, ok := mapping[ident]; ok {
+			return repl, ok
+		}
+	}
+	return "", false
+}
+
+func Canonical(name string) string { return strings.ToLower(name) }

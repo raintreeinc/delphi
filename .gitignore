@@ -25,3 +25,10 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+# Delphi specific things
+*.cfg
+*.dof
+*.dex
+*.dcu
+*.dproj
