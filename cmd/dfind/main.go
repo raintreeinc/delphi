@@ -18,11 +18,12 @@ import (
 )
 
 var (
-	verbose    = flag.Bool("v", false, "verbose")
-	batchfile  = flag.String("batch", "", "file describing all renames")
-	nprocs     = flag.Int("procs", 8, "number of parallel parsers to use")
-	write      = flag.Bool("w", false, "write changes to files")
-	ignoreCase = flag.Bool("i", false, "ignore case")
+	verbose     = flag.Bool("v", false, "verbose")
+	batchfile   = flag.String("batch", "", "file describing all renames")
+	nprocs      = flag.Int("procs", 8, "number of parallel parsers to use")
+	write       = flag.Bool("w", false, "write changes to files")
+	ignoreCase  = flag.Bool("i", false, "ignore case")
+	ignoreSpace = flag.Bool("is", false, "ignore spaces when counting")
 
 	// different modes
 	count   = flag.Bool("count", false, "count number of occurrances")
@@ -112,7 +113,7 @@ func main() {
 		}
 		sort.Strings(names)
 
-		tw := tabwriter.NewWriter(os.Stdout, 0, 8, 0, '\t', 0)
+		tw := tabwriter.NewWriter(os.Stdout, 0, 8, 2, '\t', 0)
 		for _, name := range names {
 			match := Total.Matches[name]
 			fmt.Fprintf(tw, "'%v'\t%v\n", Total.Actual[name], match.Count)
@@ -177,7 +178,12 @@ func NewMatch() *Match {
 func (counter *Counter) Add(file string, match string) {
 	canon := match
 	if *ignoreCase {
-		canon = strings.ToLower(match)
+		canon = strings.ToLower(canon)
+	}
+	if *ignoreSpace {
+		canon = strings.Replace(canon, " ", "", -1)
+		canon = strings.Replace(canon, "\t", "", -1)
+		canon = strings.Replace(canon, "\n", "", -1)
 	}
 
 	if _, ok := counter.Actual[canon]; !ok {
