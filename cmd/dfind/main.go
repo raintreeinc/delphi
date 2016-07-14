@@ -47,6 +47,10 @@ func main() {
 		globs = []string{"."}
 	}
 
+	if *ignoreCase {
+		match = "(?i)" + match
+	}
+
 	re, err := regexp.Compile(match)
 	if err != nil {
 		fmt.Println("Failed to compile PATTERN: %v", err)
@@ -83,10 +87,7 @@ func main() {
 			}
 			if *replace != "" {
 				file.Replace(r, *replace)
-			}
-
-			if *replace != "" && file.Changed() {
-				if err := file.Save(); err != nil {
+				if err := file.SaveChanges(); err != nil {
 					errors <- err
 				}
 			}
@@ -105,7 +106,6 @@ func main() {
 	}
 
 	if *count {
-
 		var names []string
 		for name := range Total.Actual {
 			names = append(names, name)
@@ -133,7 +133,9 @@ func main() {
 		tw.Flush()
 	}
 
-	fmt.Println("<DONE>")
+	if *verbose {
+		fmt.Println("<DONE>")
+	}
 }
 
 func (file *File) CountRegular(re *regexp.Regexp, counter *Counter) {
@@ -178,7 +180,7 @@ func (counter *Counter) Add(file string, match string) {
 		canon = strings.ToLower(match)
 	}
 
-	if _, ok := counter.Actual[match]; !ok {
+	if _, ok := counter.Actual[canon]; !ok {
 		counter.Actual[canon] = match
 		counter.Matches[canon] = NewMatch()
 	}
@@ -229,13 +231,20 @@ func LoadFile(path string) (*File, error) {
 	return &File{path, src, src}, nil
 }
 
-func (file *File) Changed() bool { return bytes.Equal(file.Source, file.Modified) }
-func (file *File) Save() error {
+func (file *File) Changed() bool { return !bytes.Equal(file.Source, file.Modified) }
+func (file *File) SaveChanges() error {
 	if !file.Changed() {
 		return nil
 	}
 	if *write {
-		return ioutil.WriteFile(file.Path, file.Modified, 0755)
+		err := ioutil.WriteFile(file.Path, file.Modified, 0755)
+		if err == nil {
+			fmt.Println("MODIFIED ", file.Path)
+		}
+		return err
+	} else if *verbose {
+		fmt.Println("<<<", file.Path, ">>>")
+		fmt.Println(string(file.Modified))
 	} else {
 		fmt.Println("MODIFIES ", file.Path)
 	}
