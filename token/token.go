@@ -197,7 +197,7 @@ var tokens = [...]string{
 	ILLEGAL:    "ILLEGAL",
 	EOF:        "EOF",
 	COMMENT:    "COMMENT",
-	CDIRECTIVE: "CDIRECTIVE",
+	CDIRECTIVE: "CDIRECT",
 
 	IDENT:   "IDENT",
 	INTEGER: "INTEGER",

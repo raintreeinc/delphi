@@ -12,6 +12,10 @@ import (
 	"github.com/raintreeinc/delphi/token"
 )
 
+var (
+	comments = flag.Bool("comments", false, "include comments")
+)
+
 func main() {
 	flag.Parse()
 
@@ -33,9 +37,15 @@ func main() {
 	var s scanner.Scanner
 	fset := token.NewFileSet()                      // positions are relative to fset
 	file := fset.AddFile("", fset.Base(), len(src)) // register input "file"
+
+	var flags scanner.Mode
+	if *comments {
+		flags = scanner.ScanComments
+	}
+
 	s.Init(file, src, func(pos token.Position, msg string) {
 		fmt.Printf("%s\tERROR\t%s\n", pos, msg)
-	}, 0)
+	}, flags)
 
 	for {
 		pos, tok, lit := s.Scan()

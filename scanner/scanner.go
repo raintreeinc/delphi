@@ -548,14 +548,16 @@ scanAgain:
 		case '{':
 			tok = token.COMMENT
 			if s.ch == '$' {
+				lit = s.scanComment('{')
 				tok = token.CDIRECTIVE
+			} else {
+				lit = s.scanComment('{')
+				if s.mode&ScanComments == 0 {
+					lit = ""
+					// skip comment
+					goto scanAgain
+				}
 			}
-			comment := s.scanComment('{')
-			if s.mode&ScanComments == 0 {
-				// skip comment
-				goto scanAgain
-			}
-			lit = comment
 		case '@':
 			tok = token.AT
 		case '<':
