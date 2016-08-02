@@ -11,6 +11,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -47,6 +48,14 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error loading mapping: %s\n", err)
 		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	errs := batch.CheckDuplicates()
+	if len(errs) > 0 {
+		for _, err := range errs {
+			fmt.Println(err)
+		}
 		os.Exit(1)
 	}
 
@@ -159,6 +168,22 @@ func LoadBatchFile(file string) (*BatchRename, error) {
 
 	m.canonicalize()
 	return m, nil
+}
+
+func (batch *BatchRename) CheckDuplicates() []error {
+	dups := []error{}
+	duplicate := map[string]bool{}
+	for unit, mapping := range batch.Unit {
+		for _, name := range mapping {
+			cname := strings.ToLower(name)
+			if duplicate[cname] {
+				dups = append(dups, errors.New(fmt.Sprintf("%s: %s", unit, name)))
+			}
+			duplicate[cname] = true
+		}
+	}
+
+	return dups
 }
 
 // Converts all source identifiers to Canonical form
