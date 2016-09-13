@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/raintreeinc/delphi/scanner"
@@ -43,7 +44,7 @@ func main() {
 	index.Build(dprfile)
 
 	if *outfile == "" {
-		*outfile = TrimExt(filepath.Base(dprfile)) + ".tgf"
+		*outfile = TrimExt(filepath.Base(dprfile)) + ".txt"
 	}
 
 	file, err := os.Create(*outfile)
@@ -60,11 +61,46 @@ func main() {
 		WriteTGF(index, wr)
 	} else if ext == ".dot" {
 		WriteDOT(index, wr)
+	} else if ext == ".txt" {
+		WriteTXT(index, wr)
 	} else if ext == ".glay" {
 		WriteGLAY(index, wr)
 	} else {
 		log.Fatal("Unknown file extension " + ext)
 	}
+}
+
+func WriteTXT(index *Index, out io.Writer) (n int, err error) {
+	write := func(format string, args ...interface{}) bool {
+		if err != nil {
+			return false
+		}
+		var x int
+		x, err = fmt.Fprintf(out, format, args...)
+		n += x
+		return err == nil
+	}
+
+	cunitnames := make([]string, 0, len(index.Uses))
+	for cunitname := range index.Uses {
+		cunitnames = append(cunitnames, cunitname)
+	}
+	sort.Strings(cunitnames)
+
+	for _, cunitname := range cunitnames {
+		uses := index.Uses[cunitname]
+
+		write("# %v\n", uses.Unit)
+		for _, use := range uses.Interface {
+			write("\t+ %v\n", index.NormalName(use))
+		}
+		for _, use := range uses.Implementation {
+			write("\t- %v\n", index.NormalName(use))
+		}
+		write("\n")
+	}
+
+	return
 }
 
 func WriteDOT(index *Index, out io.Writer) (n int, err error) {
@@ -157,8 +193,8 @@ type Index struct {
 
 type UnitUses struct {
 	Unit           string
-	Interface      []string
-	Implementation []string
+	Interface      []string // case insensitive sorted names
+	Implementation []string // case insensitive sorted names
 }
 
 func NewIndex(dir string) (*Index, error) {
@@ -174,6 +210,10 @@ func (index *Index) load(dir string) error {
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+		abs, _ := filepath.Abs(path)
+		if abs != "" {
+			path = abs
 		}
 
 		name := filepath.Base(path)
@@ -285,15 +325,20 @@ func (index *Index) Load(unitname string) *UnitUses {
 		if tok == token.IMPLEMENTATION {
 			state = 2
 		} else if tok == token.IDENT {
-			_, isunit := index.Path[strings.ToLower(lit)]
+			cusename := strings.ToLower(lit)
+			if cusename == cunitname {
+				continue
+			}
+
+			_, isunit := index.Path[cusename]
 			if !isunit {
 				continue
 			}
 
 			if state == 1 {
-				uses.Interface = append(uses.Interface, lit)
+				uses.Interface = IncludeString(uses.Interface, lit)
 			} else if state == 2 {
-				uses.Implementation = append(uses.Implementation, lit)
+				uses.Implementation = IncludeString(uses.Implementation, lit)
 			}
 		}
 	}
@@ -311,4 +356,21 @@ func (index *Index) NormalName(name string) string {
 
 func TrimExt(name string) string {
 	return name[:len(name)-len(filepath.Ext(name))]
+}
+
+func IncludeString(arr []string, item string) []string {
+	citem := strings.ToLower(item)
+	for i, use := range arr {
+		cuse := strings.ToLower(use)
+		if cuse == citem {
+			return arr
+		}
+		if cuse > citem {
+			arr = append(arr, "")
+			copy(arr[i+1:], arr[i:])
+			arr[i] = item
+			return arr
+		}
+	}
+	return append(arr, item)
 }
