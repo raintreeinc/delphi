@@ -1,31 +1,33 @@
 package ast
 
-import "go/token"
+import "github.com/raintreeinc/delphi/token"
 
-type Type interface {
-	Node
-}
+type (
+	Type interface {
+		Node
+	}
 
-type ArrayType struct {
-	Start token.Pos // position of "array" keyword
-	Dim   []ArrayTypeDim
-	Type  Type
-}
+	ArrayType struct {
+		Start token.Pos // position of "array" keyword
+		Dim   []ArrayTypeDim
+		Type  Type
+	}
 
-type ArrayTypeDim struct {
-	Low, High Expr
-}
+	ArrayTypeDim struct {
+		Low, High Expr
+	}
 
-type SetType struct {
-	Start token.Pos // position of "set" keyword
-	Type  Type
-}
+	SetType struct {
+		Start token.Pos // position of "set" keyword
+		Type  Type
+	}
 
-type PointerType struct {
-	Start token.Pos // position of caret ^
-	Type  Type
-}
+	PointerType struct {
+		Start token.Pos // position of caret ^
+		Type  Type
+	}
 
-type NamedType struct {
-	Ident Ident
-}
+	NamedType struct {
+		Ident Ident
+	}
+)

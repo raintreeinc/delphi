@@ -1,6 +1,6 @@
 package ast
 
-import "go/token"
+import "github.com/raintreeinc/delphi/token"
 
 type (
 	ParenExpr struct {

@@ -42,10 +42,10 @@ type (
 		Doc       *CommentGroup
 		Name      *Ident
 		Ancestors []Ident
-		Scopes    []DeclGroup
+		Scopes    []QualifiedDecls
 	}
 
-	DeclGroup struct {
+	QualifiedDecls struct {
 		Doc       *CommentGroup
 		Start     token.Pos   // position of Qualifier
 		Qualifier token.Token // one of PRIVATE, PROTECTED, PUBLIC, PUBLISHED, RECORD
