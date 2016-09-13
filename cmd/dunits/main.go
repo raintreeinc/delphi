@@ -60,6 +60,8 @@ func main() {
 		WriteTGF(index, wr)
 	} else if ext == ".dot" {
 		WriteDOT(index, wr)
+	} else if ext == ".glay" {
+		WriteGLAY(index, wr)
 	} else {
 		log.Fatal("Unknown file extension " + ext)
 	}
@@ -119,6 +121,28 @@ func WriteTGF(index *Index, out io.Writer) (n int, err error) {
 		}
 		for _, use := range uses.Implementation {
 			write("%v %v\n", ids[cunitname], ids[strings.ToLower(use)])
+		}
+	}
+
+	return 0, nil
+}
+func WriteGLAY(index *Index, out io.Writer) (n int, err error) {
+	write := func(format string, args ...interface{}) bool {
+		if err != nil {
+			return false
+		}
+		var x int
+		x, err = fmt.Fprintf(out, format, args...)
+		n += x
+		return err == nil
+	}
+
+	for _, uses := range index.Uses {
+		for _, use := range uses.Interface {
+			write("\t%v -> %v;\n", uses.Unit, index.NormalName(use))
+		}
+		for _, use := range uses.Implementation {
+			write("\t%v -> %v;\n", uses.Unit, index.NormalName(use))
 		}
 	}
 
