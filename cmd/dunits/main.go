@@ -27,15 +27,15 @@ var (
 func main() {
 	flag.Parse()
 
-	dprfile := flag.Arg(0)
-	if dprfile == "" {
+	rootfiles := flag.Args()
+	if len(rootfiles) == 0 {
 		log.Println("dpr not specified")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
 	if *directory == "" {
-		*directory = filepath.Dir(dprfile)
+		*directory = filepath.Dir(rootfiles[0])
 	}
 
 	index, err := NewIndex(*directory)
@@ -43,10 +43,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	index.Build(dprfile)
+	index.Build(rootfiles)
 
 	if *outfile == "" {
-		*outfile = TrimExt(filepath.Base(dprfile)) + ".txt"
+		*outfile = TrimExt(filepath.Base(rootfiles[0])) + ".txt"
 	}
 
 	file, err := os.Create(*outfile)
@@ -272,9 +272,11 @@ func (index *Index) addIncludePath(path string) {
 	index.IncPath[unitname] = path
 }
 
-func (index *Index) Build(dprfile string) {
+func (index *Index) Build(rootfiles []string) {
 	queue := []string{}
-	queue = append(queue, TrimExt(filepath.Base(dprfile)))
+	for _, rootfile := range rootfiles {
+		queue = append(queue, TrimExt(filepath.Base(rootfile)))
+	}
 
 	for len(queue) > 0 {
 		var unit string
