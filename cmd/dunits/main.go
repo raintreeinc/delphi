@@ -188,9 +188,10 @@ func WriteGLAY(index *Index, out io.Writer) (n int, err error) {
 }
 
 type Index struct {
-	Dir  string
-	Path map[string]string
-	Uses map[string]*UnitUses
+	Dir     string
+	Path    map[string]string
+	IncPath map[string]string
+	Uses    map[string]*UnitUses
 }
 
 type UnitUses struct {
@@ -201,9 +202,10 @@ type UnitUses struct {
 
 func NewIndex(dir string) (*Index, error) {
 	index := &Index{
-		Dir:  dir,
-		Path: make(map[string]string),
-		Uses: make(map[string]*UnitUses),
+		Dir:     dir,
+		Path:    make(map[string]string),
+		IncPath: make(map[string]string),
+		Uses:    make(map[string]*UnitUses),
 	}
 	return index, index.load(dir)
 }
@@ -227,8 +229,11 @@ func (index *Index) load(dir string) error {
 		}
 
 		ext := strings.ToLower(filepath.Ext(path))
+		if ext == ".inc" {
+			index.addIncludePath(path)
+		}
 		if ext == ".pas" || ext == ".dpr" {
-			index.include(path)
+			index.addSourcePath(path)
 		}
 
 		return nil
@@ -237,7 +242,7 @@ func (index *Index) load(dir string) error {
 	return err
 }
 
-func (index *Index) include(path string) {
+func (index *Index) addSourcePath(path string) {
 	name := filepath.Base(path)
 	unitname := strings.ToLower(TrimExt(name))
 
@@ -246,6 +251,17 @@ func (index *Index) include(path string) {
 		return
 	}
 	index.Path[unitname] = path
+}
+
+func (index *Index) addIncludePath(path string) {
+	name := filepath.Base(path)
+	unitname := strings.ToLower(TrimExt(name))
+
+	if _, duplicate := index.IncPath[unitname]; duplicate {
+		log.Println("duplicate entry:", name)
+		return
+	}
+	index.IncPath[unitname] = path
 }
 
 func (index *Index) Build(dprfile string) {
@@ -285,25 +301,45 @@ func (index *Index) Load(unitname string) *UnitUses {
 	if index.IsLoaded(unitname) {
 		return nil
 	}
-	cunitname := strings.ToLower(unitname)
 
 	uses := &UnitUses{}
 	uses.Unit = unitname
-	index.Uses[cunitname] = uses
+	index.Uses[strings.ToLower(unitname)] = uses
 
-	unitpath, ok := index.Path[cunitname]
+	unitpath, ok := index.Path[strings.ToLower(unitname)]
 	if !ok {
 		log.Printf("Did not find path for %v\n", unitname)
 		return nil
 	}
 
-	src, err := ioutil.ReadFile(unitpath)
-	if err != nil {
-		log.Printf("Failed to read %v: %v", unitname, err)
-		return nil
+	// Initialize the scanner.
+	index.iterate(uses, unitpath, 1)
+
+	return uses
+}
+
+func (index *Index) handleInclude(uses *UnitUses, directive string, state int) {
+	p := strings.IndexRune(directive, ' ')
+	name := strings.Trim(directive[p:], "{}'\" ")
+
+	includepath, ok := index.IncPath[strings.ToLower(TrimExt(name))]
+	if !ok {
+		if *verbose {
+			log.Printf("Failed to include %v: %q", name, directive)
+		}
+		return
 	}
 
-	// Initialize the scanner.
+	index.iterate(uses, includepath, state)
+}
+
+func (index *Index) iterate(uses *UnitUses, unitpath string, state int) {
+	src, err := ioutil.ReadFile(unitpath)
+	if err != nil {
+		log.Printf("Failed to read %v: %v", unitpath, err)
+		return
+	}
+
 	var s scanner.Scanner
 	fset := token.NewFileSet()                      // positions are relative to fset
 	file := fset.AddFile("", fset.Base(), len(src)) // register input "file"
@@ -312,17 +348,26 @@ func (index *Index) Load(unitname string) *UnitUses {
 
 	s.Init(file, src, func(pos token.Position, msg string) {
 		if *verbose {
-			log.Println("%s\tERROR\t%s\n", pos, msg)
+			log.Printf("%s: %s\tERROR\t%s\n", unitpath, pos, msg)
 		}
 	}, flags)
 
-	state := 1
+	cunitname := strings.ToLower(TrimExt(filepath.Base(unitpath)))
 	for {
 		pos, tok, lit := s.Scan()
 		if tok == token.EOF {
 			break
 		}
 		_ = pos
+
+		if tok == token.CDIRECTIVE {
+			llit := strings.ToLower(lit)
+			if strings.HasPrefix(llit, "{$i ") ||
+				strings.HasPrefix(llit, "{$include ") {
+				index.handleInclude(uses, lit, state)
+			}
+			continue
+		}
 
 		if tok == token.IMPLEMENTATION {
 			state = 2
@@ -346,8 +391,6 @@ func (index *Index) Load(unitname string) *UnitUses {
 			}
 		}
 	}
-
-	return uses
 }
 
 func (index *Index) NormalName(name string) string {
