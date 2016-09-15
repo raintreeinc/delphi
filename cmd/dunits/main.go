@@ -20,6 +20,8 @@ var (
 	outfile   = flag.String("out", "", "output file")
 	directory = flag.String("dir", "", "folder to search for units")
 	verbose   = flag.Bool("v", false, "verbose output")
+
+	interfaceOnly = flag.Bool("interface", false, "only output uses in interface")
 )
 
 func main() {
@@ -338,7 +340,9 @@ func (index *Index) Load(unitname string) *UnitUses {
 			if state == 1 {
 				uses.Interface = IncludeString(uses.Interface, lit)
 			} else if state == 2 {
-				uses.Implementation = IncludeString(uses.Implementation, lit)
+				if !*interfaceOnly {
+					uses.Implementation = IncludeString(uses.Implementation, lit)
+				}
 			}
 		}
 	}
