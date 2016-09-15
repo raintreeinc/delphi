@@ -83,6 +83,14 @@ func WriteTXT(index *Index, out io.Writer) (n int, err error) {
 		return err == nil
 	}
 
+	if cycles := FindCycles(index); len(cycles) > 0 {
+		write("Circular interface uses:\n")
+		for _, cycle := range cycles {
+			write("\t%v\n", cycle)
+		}
+		write("\n")
+	}
+
 	cunitnames := make([]string, 0, len(index.Uses))
 	for cunitname := range index.Uses {
 		cunitnames = append(cunitnames, cunitname)
@@ -352,7 +360,7 @@ func (index *Index) iterate(uses *UnitUses, unitpath string, state int) {
 		}
 	}, flags)
 
-	cunitname := strings.ToLower(TrimExt(filepath.Base(unitpath)))
+	cunitname := strings.ToLower(uses.Unit)
 	for {
 		pos, tok, lit := s.Scan()
 		if tok == token.EOF {
