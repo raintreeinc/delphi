@@ -4,14 +4,14 @@ import "fmt"
 
 const ShortDesc = "test units"
 
-func Help() {
+func Help(args []string) {
 	fmt.Println("Usage:")
-	fmt.Println("    delphi test [arguments]")
+	fmt.Printf("    %s [arguments]\n", args[0])
 }
 
 func Main(args []string) {
 	if len(args) <= 1 {
-		Help()
+		Help(args)
 		return
 	}
 }
