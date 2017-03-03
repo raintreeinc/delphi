@@ -1,12 +1,12 @@
 package test
 
-import "fmt"
+import "github.com/raintreeinc/delphi/internal/cli"
 
 const ShortDesc = "test units"
 
 func Help(args []string) {
-	fmt.Println("Usage:")
-	fmt.Printf("\t%s [arguments]\n", args[0])
+	cli.Helpf("Usage:\n")
+	cli.Helpf("\t%s [arguments]\n\n", args[0])
 }
 
 func Main(args []string) {

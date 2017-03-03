@@ -1,12 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
 	"github.com/raintreeinc/delphi/cmd/test"
 	"github.com/raintreeinc/delphi/cmd/tokenize"
+	"github.com/raintreeinc/delphi/internal/cli"
 )
 
 type Command struct {
@@ -36,8 +36,7 @@ func CommandHelp(args []string) {
 	cmdname := args[1]
 	cmd := FindCommand(cmdname)
 	if cmd == nil {
-		fmt.Fprintf(os.Stderr, "No command named %q\n", cmdname)
-		fmt.Fprintln(os.Stderr, "")
+		cli.Errorf("No command named %q\n\n", cmdname)
 		HelpHelp(args)
 		os.Exit(2)
 	}
@@ -49,26 +48,24 @@ func CommandHelp(args []string) {
 }
 
 func HelpHelp(args []string) {
-	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintf(os.Stderr, "\t%s [command]\n", args[0])
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Commands are:")
+	cli.Helpf("Usage:\n")
+	cli.Helpf("\t%s [command]\n\n", args[0])
+	cli.Helpf("Commands are:\n")
 	for _, cmd := range Commands {
-		fmt.Printf("    %-8s %s\n", cmd.Name, cmd.ShortDesc)
+		cli.Helpf("    %-8s %s\n", cmd.Name, cmd.ShortDesc)
 	}
 }
 
 func Help(args []string) {
-	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintf(os.Stderr, "\t%s command [arguments]\n", args[0])
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Commands are:")
+	cli.Helpf("Usage:\n")
+	cli.Helpf("\t%s command [arguments]\n\n", args[0])
+	cli.Helpf("Commands are:\n")
 	for _, cmd := range Commands {
-		fmt.Printf("\t%-8s %s\n", cmd.Name, cmd.ShortDesc)
+		cli.Helpf("\t%-8s %s\n", cmd.Name, cmd.ShortDesc)
 	}
 
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "Use \"%s help [command]\" for more information about a command.\n", args[0])
+	cli.Helpf("\n")
+	cli.Helpf("Use \"%s help [command]\" for more information about a command.\n", args[0])
 }
 
 func main() {
@@ -88,8 +85,7 @@ func main() {
 
 	cmd := FindCommand(cmdname)
 	if cmd == nil {
-		fmt.Fprintf(os.Stderr, "No command named %q\n", cmdname)
-		fmt.Fprintln(os.Stderr, "")
+		cli.Errorf("No command named %q\n\n", cmdname)
 		Help(os.Args)
 		os.Exit(2)
 	}

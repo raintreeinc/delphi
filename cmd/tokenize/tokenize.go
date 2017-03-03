@@ -1,10 +1,10 @@
 package tokenize
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 
+	"github.com/raintreeinc/delphi/internal/cli"
 	"github.com/raintreeinc/delphi/scanner"
 	"github.com/raintreeinc/delphi/token"
 )
@@ -23,7 +23,7 @@ func (state *State) Run() {
 	var err error
 	state.source, err = ioutil.ReadFile(state.Input)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed read input: %s", err)
+		cli.Errorf("Failed read input: %s", err)
 		os.Exit(1)
 	}
 
@@ -37,7 +37,7 @@ func (state *State) Run() {
 
 	state.scanner.Init(state.file, state.source,
 		func(pos token.Position, msg string) {
-			fmt.Printf("ERROR: %s: %s", pos, msg)
+			cli.Warnf("%s: %s", pos, msg)
 		}, flags)
 
 	for {
@@ -46,6 +46,6 @@ func (state *State) Run() {
 			break
 		}
 
-		fmt.Printf("%s\t%s\t%q\n", state.files.Position(pos), tok, lit)
+		cli.Printf("%s\t%s\t%q\n", state.files.Position(pos), tok, lit)
 	}
 }

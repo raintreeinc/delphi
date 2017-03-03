@@ -2,8 +2,8 @@ package tokenize
 
 import (
 	"flag"
-	"fmt"
-	"os"
+
+	"github.com/raintreeinc/delphi/internal/cli"
 )
 
 const ShortDesc = "tokenize file"
@@ -27,10 +27,9 @@ func (flags *Flags) Parse(args []string) {
 }
 
 func Help(args []string) {
-	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintf(os.Stderr, "\t%s [filename]\n", args[0])
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Arguments:")
+	cli.Helpf("Usage:\n")
+	cli.Helpf("\t%s [filename]\n\n", args[0])
+	cli.Helpf("Arguments:\n")
 
 	var flags Flags
 	flags.Parse(args)
@@ -48,9 +47,9 @@ func Main(args []string) {
 	for i, file := range flags.Files {
 		if len(flags.Files) > 1 {
 			if i > 0 {
-				fmt.Println()
+				cli.Printf("\n")
 			}
-			fmt.Printf("Tokenizing %q\n", file)
+			cli.Printf("Tokenizing %q\n", file)
 		}
 		var state State
 		state.Comments = flags.Comments
