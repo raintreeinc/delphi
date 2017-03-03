@@ -4,6 +4,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/raintreeinc/delphi/cmd/regex"
 	"github.com/raintreeinc/delphi/cmd/test"
 	"github.com/raintreeinc/delphi/cmd/tokenize"
 	"github.com/raintreeinc/delphi/internal/cli"
@@ -72,6 +73,7 @@ func main() {
 	Commands = []Command{
 		{"test", test.ShortDesc, test.Main, test.Help},
 		{"tokenize", tokenize.ShortDesc, tokenize.Main, tokenize.Help},
+		{"regex", regex.ShortDesc, regex.Main, regex.Help},
 		{"help", "print help about a command", CommandHelp, HelpHelp},
 	}
 
