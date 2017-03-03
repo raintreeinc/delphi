@@ -23,6 +23,10 @@ var (
 	interval = flag.Duration("interval", 300*time.Millisecond, "interval to wait between monitoring")
 	monitor  = flag.String("monitor", ".", "files/folders/globs to monitor")
 	verbose  = flag.Bool("verbose", false, "verbose output")
+
+	outputdir  = flag.String("bin", "bin", "output directory for executable")
+	unitdir    = flag.String("dcu", "dcu", "output directory for units")
+	workingdir = flag.String("wd", "", "working directory for running the executable")
 )
 
 func init() {
@@ -65,7 +69,7 @@ func main() {
 
 	build := &Build{}
 	build.dpr = args[0]
-	build.bin = "bin"
+	build.bin = *outputdir
 	for range watcher.Changes {
 		build.Rerun()
 	}
@@ -103,7 +107,7 @@ func (build *Build) Rerun() {
 		Kill(build.execute)
 	}
 
-	if err := os.Remove(exe); err != nil {
+	if err := os.Remove(exe); err != nil && !os.IsNotExist(err) {
 		fmtBuild.Printf("Failed to remove previous executable: %v\n", err)
 		return
 	}
@@ -114,7 +118,9 @@ func (build *Build) Rerun() {
 	}
 
 	fmtBuild.Printf("Starting \"%v\"\n", exe)
-	build.execute = Command(exe)
+	build.execute = Command(AbsPath(exe))
+	build.execute.Dir = *workingdir
+
 	if err := build.execute.Start(); err != nil {
 		fmtBuild.Printf("Failed to start: %v\n", err)
 		return
@@ -149,4 +155,12 @@ func Kill(cmd *exec.Cmd) {
 func ChangeExt(name string, newext string) string {
 	ext := filepath.Ext(name)
 	return name[:len(name)-len(ext)] + newext
+}
+
+func AbsPath(name string) string {
+	aname, err := filepath.Abs(name)
+	if err == nil {
+		return aname
+	}
+	return name
 }
