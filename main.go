@@ -50,7 +50,7 @@ func CommandHelp(args []string) {
 
 func HelpHelp(args []string) {
 	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintf(os.Stderr, "    %s [command]\n", args[0])
+	fmt.Fprintf(os.Stderr, "\t%s [command]\n", args[0])
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Commands are:")
 	for _, cmd := range Commands {
@@ -60,11 +60,11 @@ func HelpHelp(args []string) {
 
 func Help(args []string) {
 	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintf(os.Stderr, "    %s command [arguments]\n", args[0])
+	fmt.Fprintf(os.Stderr, "\t%s command [arguments]\n", args[0])
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Commands are:")
 	for _, cmd := range Commands {
-		fmt.Printf("    %-8s %s\n", cmd.Name, cmd.ShortDesc)
+		fmt.Printf("\t%-8s %s\n", cmd.Name, cmd.ShortDesc)
 	}
 
 	fmt.Fprintln(os.Stderr)

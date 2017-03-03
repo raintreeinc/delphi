@@ -6,7 +6,7 @@ const ShortDesc = "test units"
 
 func Help(args []string) {
 	fmt.Println("Usage:")
-	fmt.Printf("    %s [arguments]\n", args[0])
+	fmt.Printf("\t%s [arguments]\n", args[0])
 }
 
 func Main(args []string) {
