@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/raintreeinc/delphi/internal/cli"
 
 	"github.com/loov/watchrun/pgroup"
 	"github.com/loov/watchrun/watch"
@@ -85,7 +86,7 @@ type Build struct {
 }
 
 func (build *Build) Rerun() {
-	ClearScreen()
+	cli.Clear()
 	Kill(build.compile)
 
 	tmpbin := filepath.Join(build.bin, "tmp")
