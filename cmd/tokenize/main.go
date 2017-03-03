@@ -11,11 +11,9 @@ const ShortDesc = "tokenize file"
 func Help(args []string) {
 	cli.Helpf("Usage:\n")
 	cli.Helpf("\t%s [filename]\n\n", args[0])
-	cli.Helpf("Arguments:\n")
-
-	var flags Flags
-	flags.Parse(args)
-	flags.Set.PrintDefaults()
+	cli.Helpf(`Arguments:
+  -comments show comments
+`)
 }
 
 type Flags struct {
@@ -30,6 +28,7 @@ func (flags *Flags) Parse(args []string) {
 	flags.Set = flag.NewFlagSet(args[0], flag.ExitOnError)
 	flags.Set.BoolVar(&flags.Comments, "comments", false, "include comments")
 	flags.Set.BoolVar(&flags.Help, "help", false, "show help")
+	flags.Set.BoolVar(&flags.Help, "h", false, "show help")
 	flags.Set.Parse(args[1:])
 	flags.Files = flags.Set.Args()
 }

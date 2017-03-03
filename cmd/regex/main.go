@@ -53,7 +53,8 @@ func (flags *Flags) Parse(args []string) {
 	flags.Set = flag.NewFlagSet(args[0], flag.ExitOnError)
 
 	flags.Set.BoolVar(&flags.Help, "help", false, "show help")
-	flags.Set.BoolVar(&flags.Verbose, "verbose", false, "verbose output")
+	flags.Set.BoolVar(&flags.Help, "h", false, "show help")
+	flags.Set.BoolVar(&flags.Verbose, "v", false, "verbose output")
 
 	flags.Set.IntVar(&flags.Procs, "n", 8, "number of workers")
 

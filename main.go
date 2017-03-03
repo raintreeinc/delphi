@@ -20,6 +20,10 @@ type Command struct {
 var Commands []Command
 
 func FindCommand(name string) *Command {
+	if name == "" {
+		return nil
+	}
+
 	for _, cmd := range Commands {
 		if cmd.Name == name {
 			return &cmd
@@ -48,32 +52,33 @@ func CommandHelp(args []string) {
 	os.Exit(2)
 }
 
-func HelpHelp(args []string) {
-	cli.Helpf("Usage:\n")
-	cli.Helpf("\t%s [command]\n\n", args[0])
+func PrintCommands() {
 	cli.Helpf("Commands are:\n")
 	for _, cmd := range Commands {
 		cli.Helpf("    %-8s %s\n", cmd.Name, cmd.ShortDesc)
 	}
+	cli.Helpf("\n")
+}
+
+func HelpHelp(args []string) {
+	cli.Helpf("Usage:\n")
+	cli.Helpf("\t%s [command]\n\n", args[0])
+	PrintCommands()
 }
 
 func Help(args []string) {
 	cli.Helpf("Usage:\n")
 	cli.Helpf("\t%s command [arguments]\n\n", args[0])
-	cli.Helpf("Commands are:\n")
-	for _, cmd := range Commands {
-		cli.Helpf("\t%-8s %s\n", cmd.Name, cmd.ShortDesc)
-	}
-
-	cli.Helpf("\n")
+	PrintCommands()
 	cli.Helpf("Use \"%s help [command]\" for more information about a command.\n", args[0])
 }
 
 func main() {
 	Commands = []Command{
 		{"test", test.ShortDesc, test.Main, test.Help},
-		{"tokenize", tokenize.ShortDesc, tokenize.Main, tokenize.Help},
 		{"regex", regex.ShortDesc, regex.Main, regex.Help},
+		{},
+		{"tokenize", tokenize.ShortDesc, tokenize.Main, tokenize.Help},
 		{"help", "print help about a command", CommandHelp, HelpHelp},
 	}
 
