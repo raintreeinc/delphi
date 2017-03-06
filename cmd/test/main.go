@@ -94,6 +94,7 @@ func Main(args []string) {
 
 	build.Verbose = flags.Verbose
 	build.Name = "All"
+	build.Dir = flags.BuildDir
 	build.Project = build.Name + "_Tests"
 	build.Search = strings.Split(flags.Search, ";")
 	build.Define = strings.Split(flags.Define, ";")
@@ -108,7 +109,7 @@ func Main(args []string) {
 
 	if err := build.Prepare(); err != nil {
 		cli.Errorf("%v\n", err)
-		os.Exit(1)
+		return
 	}
 	go signalhandler(build, flags.BuildDir)
 
@@ -165,12 +166,12 @@ func Main(args []string) {
 
 	if err := build.Create(); err != nil {
 		cli.Errorf("%v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	if err := build.Run(); err != nil {
 		cli.Errorf("%v\n", err)
-		os.Exit(1)
+		return
 	}
 }
 
@@ -199,11 +200,14 @@ func (build *Build) OutputDir() string { return filepath.Join(build.Dir, build.P
 func (build *Build) BuildDir() string  { return filepath.Join(build.Dir, build.Project+"_dcu") }
 
 func (build *Build) Kill() error {
-	return NewErrors(
-		"killing build",
-		build.Compile.Process.Kill(),
-		build.Execute.Process.Kill(),
-	)
+	var err1, err2 error
+	if build.Compile.Process != nil {
+		err1 = build.Compile.Process.Kill()
+	}
+	if build.Execute.Process != nil {
+		err2 = build.Execute.Process.Kill()
+	}
+	return NewErrors("killing build", err1, err2)
 }
 
 func (build *Build) Prepare() error {
