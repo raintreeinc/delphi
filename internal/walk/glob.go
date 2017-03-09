@@ -35,7 +35,7 @@ func Glob(glob string, filenames chan string, errors chan error) {
 			errors <- err
 		}
 		name := filepath.Base(match)
-		if istemp(name) {
+		if istemp(name) && name != "." {
 			continue
 		}
 		if info.IsDir() {
