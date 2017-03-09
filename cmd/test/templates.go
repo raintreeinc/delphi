@@ -33,7 +33,7 @@ program {{.Project}};
 uses
   FastMM4,
   FastCode,
-
+  
   {{range $index, $test := .Tests}}
   {{$test.UnitName}} in '{{$test.Path}}',
   {{end}}
@@ -47,13 +47,13 @@ begin
   lVerbose := Flag.Bool('v', False, 'verbose output');
   Flag.Check;
 
-  {{- range $test_index, $test := .Tests}}
+  {{range $test_index, $test := .Tests}}
   RunTests('{{$test.UnitName}}', [
   	{{range $index, $func := $test.Funcs}}{{if $index}},{{end}}
   	TestCase('{{$func}}', {{$test.UnitName}}.{{$func}})
   	{{- end}}
   ], lVerbose);
-  {{end -}}
+  {{end}}
 end.
 `))
 

@@ -34,6 +34,10 @@ func Glob(glob string, filenames chan string, errors chan error) {
 		if err != nil {
 			errors <- err
 		}
+		name := filepath.Base(match)
+		if istemp(name) {
+			continue
+		}
 		if info.IsDir() {
 			err := filepath.Walk(glob, func(file string, info os.FileInfo, err error) error {
 				if err != nil {
@@ -52,6 +56,9 @@ func Glob(glob string, filenames chan string, errors chan error) {
 				errors <- err
 			}
 		} else {
+			if !issource(name) {
+				continue
+			}
 			filenames <- match
 		}
 	}

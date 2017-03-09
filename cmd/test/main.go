@@ -83,14 +83,16 @@ func Main(args []string) {
 		return
 	}
 
+	var tempdir string
 	if flags.BuildDir == "" {
-		flags.BuildDir, _ = ioutil.TempDir(delphi.TempDir(), "delphitest")
+		tempdir, _ = ioutil.TempDir(delphi.TempDir(), "delphitest")
+		flags.BuildDir = tempdir
 	}
 	if flags.Search == "" {
 		flags.Search = delphi.SearchPath()
 	}
 	build := &Build{}
-	defer cleanup(build, flags.BuildDir)
+	defer cleanup(build, tempdir)
 
 	build.Verbose = flags.Verbose
 	build.Name = "All"
@@ -111,7 +113,7 @@ func Main(args []string) {
 		cli.Errorf("%v\n", err)
 		return
 	}
-	go signalhandler(build, flags.BuildDir)
+	go signalhandler(build, tempdir)
 
 	cli.Priorityf("collecting tests\n")
 
@@ -153,6 +155,9 @@ func Main(args []string) {
 
 	if flags.Verbose {
 		cli.Infof("Building: %v\n", build.Project)
+		cli.Infof("     DPR: %v\n", build.DPR())
+		cli.Infof("     Dir: %v\n", build.Dir)
+
 		cli.Infof("  Search:\n")
 		for _, path := range build.Search {
 			cli.Infof("    %v\n", path)

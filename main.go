@@ -76,6 +76,7 @@ func Help(args []string) {
 func main() {
 	Commands = []Command{
 		{"test", test.ShortDesc, test.Main, test.Help},
+		// {"cycles", cycles.ShortDesc, cycles.Main, cycles.Help},
 		{"regex", regex.ShortDesc, regex.Main, regex.Help},
 		{},
 		{"tokenize", tokenize.ShortDesc, tokenize.Main, tokenize.Help},
