@@ -17,8 +17,12 @@ import (
 	"github.com/loov/watchrun/watch"
 )
 
+var DefaultIgnore = append(watch.DefaultIgnore[:],
+	"*.dcu", "*.map",
+)
+
 var (
-	ignore = watch.Globs{false, watch.DefaultIgnore, nil}
+	ignore = watch.Globs{false, DefaultIgnore, nil}
 	care   = watch.Globs{false, nil, nil}
 
 	interval = flag.Duration("interval", 300*time.Millisecond, "interval to wait between monitoring")

@@ -277,6 +277,10 @@ func NewTestFile(path string) (*TestFile, error) {
 		Funcs:    []string{},
 	}
 
+	if abs, err := filepath.Abs(path); err == nil {
+		file.Path = abs
+	}
+
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
