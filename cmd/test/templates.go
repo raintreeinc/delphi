@@ -35,7 +35,7 @@ uses
   FastCode,
   
   {{range $index, $test := .Tests}}
-  {{$test.UnitName}} in '{{$test.Path}}',
+  {{$test.UnitName}},
   {{end}}
 
   rtTest,
