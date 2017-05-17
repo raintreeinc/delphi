@@ -29,7 +29,11 @@ func DCC() string {
 func SearchPathFromRoot(root string) []string {
 	filenames := make(chan string, 8)
 	errors := make(chan error, 8)
-	go func() { walk.Glob(root, filenames, errors); close(filenames); close(errors) }()
+	go func() {
+		walk.Glob(root, filenames, errors, walk.IsDelphiFile)
+		close(filenames)
+		close(errors)
+	}()
 
 	go func() {
 		for range errors {

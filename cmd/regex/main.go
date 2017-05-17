@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/egonelbre/async"
+	"github.com/raintreeinc/delphi/delphi"
 	"github.com/raintreeinc/delphi/internal/cli"
 	"github.com/raintreeinc/delphi/internal/walk"
 )
@@ -22,25 +23,32 @@ func Help(args []string) {
   -v    verbose output
   -n    number of workers (default 8)
 
-  -i    ignore case
-  -is   ignore spaces when counting
+  -match   extract specific match
+  -case    case sensitive
+  -nospace ignore spaces when counting
 
   -w    write replacements to file
   -r    replacement for pattern
+
+  -care check only files that match these globs
 `)
 }
 
 type Flags struct {
 	Count bool
 
+	Plain   bool
 	Verbose bool
 	Help    bool
 
 	Procs int
 	Write bool
 
-	IgnoreCase  bool
-	IgnoreSpace bool
+	Match         int
+	CaseSensitive bool
+	IgnoreSpace   bool
+
+	Care walk.GlobsFlag
 
 	Pattern     string
 	Replacement string
@@ -56,13 +64,18 @@ func (flags *Flags) Parse(args []string) {
 	flags.Set.BoolVar(&flags.Help, "h", false, "show help")
 	flags.Set.BoolVar(&flags.Verbose, "v", false, "verbose output")
 
+	flags.Set.BoolVar(&flags.Plain, "plain", false, "do not output count")
+
 	flags.Set.IntVar(&flags.Procs, "n", 8, "number of workers")
 
-	flags.Set.BoolVar(&flags.IgnoreCase, "i", false, "ignore case")
-	flags.Set.BoolVar(&flags.IgnoreSpace, "is", false, "ignore spaces when counting")
+	flags.Set.IntVar(&flags.Match, "match", 0, "extract specific match")
+	flags.Set.BoolVar(&flags.CaseSensitive, "case", false, "case sensitive")
+	flags.Set.BoolVar(&flags.IgnoreSpace, "nospace", false, "ignore spaces when counting")
 
 	flags.Set.BoolVar(&flags.Write, "w", false, "write replacements to file")
 	flags.Set.StringVar(&flags.Replacement, "r", "", "replacement for pattern")
+
+	flags.Set.Var(&flags.Care, "care", "check only files that match these globs")
 
 	flags.Set.Parse(args[1:])
 
@@ -87,7 +100,7 @@ func Main(args []string) {
 		flags.Count = true
 	}
 
-	if flags.IgnoreCase {
+	if !flags.CaseSensitive {
 		flags.Pattern = "(?i)" + flags.Pattern
 	}
 
@@ -101,9 +114,14 @@ func Main(args []string) {
 	errors := make(chan error, flags.Procs)
 	counters := make(chan *Counter, flags.Procs)
 
+	care := walk.IsDelphiFile
+	if !flags.Care.IsEmpty() {
+		care = flags.Care.Matches
+	}
+
 	// walk files
 	go func() {
-		walk.Globs(flags.Paths, filenames, errors)
+		walk.Globs(flags.Paths, filenames, errors, care)
 		close(filenames)
 	}()
 
@@ -119,7 +137,7 @@ func Main(args []string) {
 			}
 
 			if flags.Count {
-				file.CountRegular(r, total, flags.IgnoreCase, flags.IgnoreSpace)
+				file.CountRegular(r, total, flags.Match, !flags.CaseSensitive, flags.IgnoreSpace)
 			}
 			if flags.Replacement != "" {
 				file.Replace(r, flags.Replacement)
@@ -155,24 +173,30 @@ func Main(args []string) {
 		}
 		sort.Strings(names)
 
-		tw := tabwriter.NewWriter(os.Stdout, 0, 8, 2, '\t', 0)
-		for _, name := range names {
-			match := total.Matches[name]
-			fmt.Fprintf(tw, "'%v'\t%v\n", total.Actual[name], match.Count)
-
-			if flags.Verbose {
-				var files []string
-				for file := range match.Files {
-					files = append(files, file)
-				}
-				sort.Strings(files)
-
-				for _, file := range files {
-					fmt.Fprintf(tw, "    - %v\t%v\n", file, match.Files[file])
-				}
-				fmt.Fprintln(tw)
+		if flags.Plain {
+			for _, name := range names {
+				fmt.Fprintf(os.Stdout, "%v\n", delphi.Quote(total.Actual[name]))
 			}
+		} else {
+			tw := tabwriter.NewWriter(os.Stdout, 0, 8, 2, '\t', 0)
+			for _, name := range names {
+				match := total.Matches[name]
+				fmt.Fprintf(tw, "%v\t%v\n", delphi.Quote(total.Actual[name]), match.Count)
+
+				if flags.Verbose {
+					var files []string
+					for file := range match.Files {
+						files = append(files, file)
+					}
+					sort.Strings(files)
+
+					for _, file := range files {
+						fmt.Fprintf(tw, "    - %v\t%v\n", file, match.Files[file])
+					}
+					fmt.Fprintln(tw)
+				}
+			}
+			tw.Flush()
 		}
-		tw.Flush()
 	}
 }

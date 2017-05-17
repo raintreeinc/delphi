@@ -120,7 +120,7 @@ func Main(args []string) {
 	filenames := make(chan string, 8)
 	errors := make(chan error, 8)
 	go func() {
-		walk.Globs(flags.Paths, filenames, errors)
+		walk.Globs(flags.Paths, filenames, errors, walk.IsDelphiFile)
 		close(filenames)
 		close(errors)
 	}()

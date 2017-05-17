@@ -28,11 +28,18 @@ func (file *File) WriteChanges() error {
 	return ioutil.WriteFile(file.Path, file.Modified, 0755)
 }
 
-func (file *File) CountRegular(re *regexp.Regexp, counter *Counter, ignoreCase, ignoreSpace bool) {
-	re.ReplaceAllFunc(file.Source, func(match []byte) []byte {
-		counter.Add(file.Path, string(match), ignoreCase, ignoreSpace)
-		return match
-	})
+func (file *File) CountRegular(re *regexp.Regexp, counter *Counter, sub int, ignoreCase, ignoreSpace bool) {
+	if sub == 0 {
+		re.ReplaceAllFunc(file.Source, func(match []byte) []byte {
+			counter.Add(file.Path, string(match), ignoreCase, ignoreSpace)
+			return match
+		})
+	} else {
+		for _, match := range re.FindAllSubmatchIndex(file.Source, -1) {
+			s, e := match[sub*2], match[sub*2+1]
+			counter.Add(file.Path, string(file.Source[s:e]), ignoreCase, ignoreSpace)
+		}
+	}
 }
 
 func (file *File) Replace(re *regexp.Regexp, replacement string) {

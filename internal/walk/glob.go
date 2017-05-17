@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func issource(file string) bool {
+func IsDelphiFile(file string) bool {
 	ext := strings.ToLower(filepath.Ext(file))
 	return ext == ".pas" || ext == ".inc" || ext == ".dpr"
 }
@@ -16,17 +16,20 @@ func istemp(name string) bool {
 	return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "~") || strings.HasSuffix(name, "~")
 }
 
-func Globs(globs []string, filenames chan string, errors chan error) {
+func Globs(globs []string, filenames chan string, errors chan error, care func(file string) bool) {
 	for _, glob := range globs {
-		Glob(glob, filenames, errors)
+		Glob(glob, filenames, errors, care)
 	}
 }
 
-func Glob(glob string, filenames chan string, errors chan error) {
+func Glob(glob string, filenames chan string, errors chan error, care func(file string) bool) {
 	matches, err := filepath.Glob(glob)
 	if err != nil {
 		errors <- fmt.Errorf("GLOB %v: %v", glob, err)
 		return
+	}
+	if care == nil {
+		care = IsDelphiFile
 	}
 
 	for _, match := range matches {
@@ -43,7 +46,7 @@ func Glob(glob string, filenames chan string, errors chan error) {
 				if err != nil {
 					return err
 				}
-				if !issource(file) {
+				if !care(file) {
 					return nil
 				}
 				if istemp(info.Name()) {
@@ -56,7 +59,7 @@ func Glob(glob string, filenames chan string, errors chan error) {
 				errors <- err
 			}
 		} else {
-			if !issource(name) {
+			if !care(name) {
 				continue
 			}
 			filenames <- match
