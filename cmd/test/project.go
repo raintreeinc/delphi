@@ -49,9 +49,9 @@ begin
 
   {{range $test_index, $test := .Tests}}
   RunTests('{{$test.UnitName}}', [
-  	{{range $index, $func := $test.Funcs}}{{if $index}},{{end}}
-  	TestCase('{{$func}}', {{$test.UnitName}}.{{$func}})
-  	{{- end}}
+    {{range $index, $func := $test.Funcs}}{{if $index}},{{end}}
+    TestCase('{{$func}}', {{$test.UnitName}}.{{$func}})
+    {{- end}}
   ], lVerbose);
   {{end}}
 end.

@@ -7,12 +7,13 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/raintreeinc/delphi/delphi"
 	"github.com/raintreeinc/delphi/internal/cli"
 	"github.com/raintreeinc/delphi/internal/walk"
+	"github.com/raintreeinc/delphi/scanner"
+	"github.com/raintreeinc/delphi/token"
 )
 
 const ShortDesc = "test units"
@@ -38,6 +39,8 @@ type Flags struct {
 	Define   string
 	Paths    []string
 
+	DUnit string
+
 	Set *flag.FlagSet
 }
 
@@ -53,6 +56,8 @@ func (flags *Flags) Parse(args []string) {
 	flags.Set.StringVar(&flags.Search, "search", "", "search path, default DELPHI_SEARCH")
 	flags.Set.StringVar(&flags.Define, "define", "", "compile defines, default DELPHI_DEFINE")
 	flags.Set.StringVar(&flags.Root, "root", "", "search root, adds all folders recursively")
+
+	flags.Set.StringVar(&flags.DUnit, "dunit", "", "generate DUnit tests")
 
 	flags.Set.Parse(args[1:])
 	flags.Paths = flags.Set.Args()
@@ -169,6 +174,13 @@ func Main(args []string) {
 		}
 	}
 
+	if flags.DUnit != "" {
+		if err := GenerateDUnit(build.Tests, flags.DUnit); err != nil {
+			cli.Errorf("%v\n", err)
+		}
+		return
+	}
+
 	if err := build.Create(); err != nil {
 		cli.Errorf("%v\n", err)
 		return
@@ -265,10 +277,6 @@ type TestFile struct {
 	Funcs    []string
 }
 
-var (
-	rxTestCase = regexp.MustCompile(`(?i)\bprocedure\s+(Test_[a-z0-9_]+)\s*\(\s*[a-z0-9_]+\s*:\s*TTestCase\s*\)\s*;`)
-)
-
 func NewTestFile(path string) (*TestFile, error) {
 	ext := filepath.Ext(path)
 	file := &TestFile{
@@ -286,12 +294,18 @@ func NewTestFile(path string) (*TestFile, error) {
 		return nil, err
 	}
 
-	matches := rxTestCase.FindAllStringSubmatch(string(data), -1)
-	for _, match := range matches {
-		if !contains(match[1], file.Funcs) {
-			file.Funcs = append(file.Funcs, match[1])
+	var pre token.Token
+	scanner.Scan(data, 0, func(tok token.Token, lit string) error {
+		if pre == token.PROCEDURE && tok == token.IDENT {
+			if strings.HasPrefix(strings.ToLower(lit), "test_") {
+				if !contains(lit, file.Funcs) {
+					file.Funcs = append(file.Funcs, lit)
+				}
+			}
 		}
-	}
+		pre = tok
+		return nil
+	}, nil)
 
 	return file, nil
 }

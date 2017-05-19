@@ -11,6 +11,7 @@
 package scanner
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -581,4 +582,34 @@ scanAgain:
 		s.lastTok = tok
 	}
 	return
+}
+
+var (
+	ErrStop = errors.New("stop marker for scan")
+)
+
+func Scan(src []byte, mode Mode, fn func(tok token.Token, lit string) error, onerr ErrorHandler) error {
+	var s Scanner
+	fset := token.NewFileSet()
+	file := fset.AddFile("", fset.Base(), len(src))
+	s.Init(file, src, onerr, mode)
+
+	var tok token.Token
+	var lit string
+	for tok != token.EOF {
+		_, tok, lit = s.Scan()
+		err := fn(tok, lit)
+		if err != nil {
+			if err == ErrStop {
+				return nil
+			}
+			return err
+		}
+
+		if s.ErrorCount > 10 {
+			return errors.New("too many errors")
+		}
+	}
+
+	return nil
 }
