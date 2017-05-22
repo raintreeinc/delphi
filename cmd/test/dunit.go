@@ -1,14 +1,19 @@
 package test
 
 import (
+	"bytes"
 	"html/template"
-	"os"
+	"io/ioutil"
 	"path/filepath"
 	"strings"
 )
 
 var (
-	DUnit_Template = template.Must(template.New("").Parse(`unit {{.TestUnit}};
+	DUnit_Template = template.Must(template.New("").Parse(`// DO NOT MODIFY MANUALLY, AUTO-GENERATED
+// delphi test -dunit {{.TestUnit}}.pas .
+
+unit {{.TestUnit}};
+
 interface
 
 uses
@@ -84,13 +89,13 @@ func GenerateDUnit(tests []*TestFile, outfile string) error {
 		dtests.Tests = append(dtests.Tests, dtest)
 	}
 
-	f, err := os.Create(outfile)
+	var buf bytes.Buffer
+	err := DUnit_Template.Execute(&buf, dtests)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
-	return DUnit_Template.Execute(f, dtests)
+	return ioutil.WriteFile(outfile, windowsLineEndings(buf.Bytes()), 0755)
 }
 
 func trimSuffix(s, suffix string) string {
@@ -105,4 +110,11 @@ func trimPrefix(s, prefix string) string {
 		return s[len(prefix):]
 	}
 	return s
+}
+
+func windowsLineEndings(data []byte) []byte {
+	data = bytes.Replace(data, []byte("\r\n"), []byte("\n"), -1)
+	data = bytes.Replace(data, []byte("\n\r"), []byte("\n"), -1)
+	data = bytes.Replace(data, []byte("\n"), []byte("\r\n"), -1)
+	return data
 }
