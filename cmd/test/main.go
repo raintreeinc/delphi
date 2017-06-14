@@ -175,6 +175,13 @@ func Main(args []string) {
 	}
 
 	if flags.DUnit != "" {
+		cli.Infof("Generating DUnit for:\n")
+		for _, testfile := range build.Tests {
+			cli.Infof("    %v\n", testfile.UnitName)
+			for _, testname := range testfile.Funcs {
+				cli.Infof("        %v\n", testname)
+			}
+		}
 		if err := GenerateDUnit(build.Tests, flags.DUnit); err != nil {
 			cli.Errorf("%v\n", err)
 		}
