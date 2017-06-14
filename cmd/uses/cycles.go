@@ -1,4 +1,4 @@
-package cycles
+package uses
 
 import (
 	"strings"

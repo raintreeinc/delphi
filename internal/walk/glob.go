@@ -12,7 +12,8 @@ func IsDelphiFile(file string) bool {
 	return ext == ".pas" || ext == ".inc" || ext == ".dpr"
 }
 
-func istemp(name string) bool {
+func istemp(file string) bool {
+	name := filepath.Base(file)
 	return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "~") || strings.HasSuffix(name, "~")
 }
 
@@ -37,19 +38,24 @@ func Glob(glob string, filenames chan string, errors chan error, care func(file 
 		if err != nil {
 			errors <- err
 		}
-		name := filepath.Base(match)
-		if istemp(name) && name != "." {
+
+		if istemp(match) && filepath.Base(match) != "." {
 			continue
 		}
+
 		if info.IsDir() {
 			err := filepath.Walk(glob, func(file string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
+				istmp := istemp(file)
+				if info.IsDir() && istmp {
+					return filepath.SkipDir
+				}
 				if !care(file) {
 					return nil
 				}
-				if istemp(info.Name()) {
+				if istmp {
 					return filepath.SkipDir
 				}
 				filenames <- file
@@ -59,7 +65,7 @@ func Glob(glob string, filenames chan string, errors chan error, care func(file 
 				errors <- err
 			}
 		} else {
-			if !care(name) {
+			if !care(match) {
 				continue
 			}
 			filenames <- match
