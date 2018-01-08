@@ -60,7 +60,14 @@ func (flags *Flags) Parse(args []string) {
 	flags.Set.StringVar(&flags.DUnit, "dunit", "", "generate DUnit tests")
 
 	flags.Set.Parse(args[1:])
+
 	flags.Paths = flags.Set.Args()
+
+	// convert to absolute paths
+	flags.BuildDir = delphi.AbsPath(flags.BuildDir)
+	flags.Search = delphi.AbsPath(flags.Search)
+	flags.Root = delphi.AbsPath(flags.Root)
+	flags.Paths = delphi.AbsPaths(flags.Paths)
 }
 
 func cleanup(build *Build, tempBuildDir string) {
@@ -292,9 +299,7 @@ func NewTestFile(path string) (*TestFile, error) {
 		Funcs:    []string{},
 	}
 
-	if abs, err := filepath.Abs(path); err == nil {
-		file.Path = abs
-	}
+	file.Path = delphi.AbsPath(path)
 
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
