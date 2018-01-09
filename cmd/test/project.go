@@ -33,12 +33,12 @@ program {{.Project}};
 uses
   FastMM4,
   FastCode,
+  rtTest,
   
   {{range $index, $test := .Tests}}
   {{$test.UnitName}},
   {{end}}
 
-  rtTest,
   rtFlag;
 
 var
