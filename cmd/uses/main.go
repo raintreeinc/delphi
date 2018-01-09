@@ -13,15 +13,19 @@ import (
 	"github.com/raintreeinc/delphi/internal/cli"
 )
 
-const ShortDesc = "test units"
+const ShortDesc = "print unit uses graph"
 
 func Help(args []string) {
 	cli.Helpf("Usage:\n")
 	cli.Helpf("\t%s project.dpr\n\n", args[0])
 	cli.Helpf(`Arguments:
-  -search   search path
-  -root     search path root, add all folders recursively
-  -out      output file
+  -search    search path
+  -root      search path root, add all folders recursively
+
+  -out       output file
+
+  -why       why is a particular file included
+  -interface only analyse interface section
 `)
 }
 

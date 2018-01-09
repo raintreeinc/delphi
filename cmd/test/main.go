@@ -26,6 +26,8 @@ func Help(args []string) {
   -search   search path
   -define   compilator defines
   -root     search path root, add all folders recursively
+
+  -dunit    generate DUnit tests
 `)
 }
 
