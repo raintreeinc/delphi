@@ -34,6 +34,7 @@ uses
   FastMM4,
   FastCode,
   rtTest,
+  Forms,
   
   {{range $index, $test := .Tests}}
   {{$test.UnitName}},
@@ -44,6 +45,8 @@ uses
 var
   lVerbose: Boolean;
 begin
+  Application.Initialize;
+
   lVerbose := Flag.Bool('v', False, 'verbose output');
   Flag.Check;
 
