@@ -32,9 +32,7 @@ program {{.Project}};
 {$APPTYPE CONSOLE}
 uses
   FastMM4,
-{$if CompilerVersion < 32.0}
   FastCode,
-{$ifend}
   rtTest,
   Forms,
   
@@ -59,14 +57,6 @@ begin
     {{- end}}
   ], lVerbose);
   {{end}}
-
-  if DebugHook <> 0 then
-  begin
-    WriteLn;
-    Write('Press ENTER to quit');
-    ReadLn;
-  end;
-
 end.
 `))
 

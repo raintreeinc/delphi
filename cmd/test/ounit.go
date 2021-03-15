@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 )
 
 var (
@@ -18,13 +17,10 @@ program {{.Project}};
 {$WARN DUPLICATE_CTOR_DTOR OFF}
 uses
   FastMM4,
-{$if CompilerVersion < 32.0}
-  FastCode,
-{$ifend}
   rtTest,
   Forms,
   
-  {{range $index, $test := .Tests}}
+  {{range $test := .Tests -}}
   {{$test.UnitName}},
   {{end}}
 
@@ -38,15 +34,15 @@ begin
   lVerbose := Flag.Bool('v', False, 'verbose output');
   Flag.Check;
 
-  {{range $test_index, $test := .Tests}}
+  {{range $test := .Tests -}}
   RunTests('{{$test.UnitName}}', [
     {{range $index, $func := $test.Funcs}}{{if $index}},{{end}}
-    TestCase('{{$func}}', {{$test.UnitName}}.{{$func}})
+    TestCase('{{$func.Method}}', {{$test.UnitName}}.{{$func.Call}})
     {{- end}}
   ], lVerbose);
   {{end}}
 
-  if DebugHook <> 0 then
+  if not (DebugHook = 0) then
   begin
     WriteLn;
     Write('Press ENTER to quit');
@@ -80,7 +76,6 @@ func GenerateOUnit(tests []*TestFile, outfile string) error {
 	for _, test := range tests {
 		dtest := Test{}
 		dtest.UnitName = test.UnitName
-		dtest.ClassName = "T" + strings.Title(trimPrefix(trimSuffix(dtest.UnitName, "_Test"), "rt")) + "Test"
 		for _, fn := range test.Funcs {
 			dtest.Funcs = append(dtest.Funcs, Func{
 				Method: trimPrefix(fn, "Test_"),

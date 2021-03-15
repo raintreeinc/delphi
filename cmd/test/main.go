@@ -62,7 +62,7 @@ func (flags *Flags) Parse(args []string) {
 	flags.Set.StringVar(&flags.Root, "root", "", "search root, adds all folders recursively")
 
 	flags.Set.StringVar(&flags.DUnit, "dunit", "", "generate DUnit tests")
-	flags.Set.StringVar(&flags.DUnit, "ounit", "", "generate dpr for TestOneUnit")
+	flags.Set.StringVar(&flags.OUnit, "ounit", "", "generate dpr for TestOneUnit")
 
 	flags.Set.Parse(args[1:])
 
