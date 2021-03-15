@@ -42,7 +42,9 @@ begin
   ], lVerbose);
   {{end}}
 
+{$WARN SYMBOL_PLATFORM OFF}
   if not (DebugHook = 0) then
+{$WARN SYMBOL_PLATFORM ON}
   begin
     WriteLn;
     Write('Press ENTER to quit');
