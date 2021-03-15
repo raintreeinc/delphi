@@ -28,6 +28,7 @@ func Help(args []string) {
   -root     search path root, add all folders recursively
 
   -dunit    generate DUnit tests
+  -ounit    generate dpr for TestOneUnit
 `)
 }
 
@@ -42,6 +43,7 @@ type Flags struct {
 	Paths    []string
 
 	DUnit string
+	OUnit string
 
 	Set *flag.FlagSet
 }
@@ -60,6 +62,7 @@ func (flags *Flags) Parse(args []string) {
 	flags.Set.StringVar(&flags.Root, "root", "", "search root, adds all folders recursively")
 
 	flags.Set.StringVar(&flags.DUnit, "dunit", "", "generate DUnit tests")
+	flags.Set.StringVar(&flags.DUnit, "ounit", "", "generate dpr for TestOneUnit")
 
 	flags.Set.Parse(args[1:])
 
@@ -192,6 +195,20 @@ func Main(args []string) {
 			}
 		}
 		if err := GenerateDUnit(build.Tests, flags.DUnit); err != nil {
+			cli.Errorf("%v\n", err)
+		}
+		return
+	}
+
+	if flags.OUnit != "" {
+		cli.Infof("Generating dpr for TestOneUnit:\n")
+		for _, testfile := range build.Tests {
+			cli.Infof("    %v\n", testfile.UnitName)
+			for _, testname := range testfile.Funcs {
+				cli.Infof("        %v\n", testname)
+			}
+		}
+		if err := GenerateOUnit(build.Tests, flags.OUnit); err != nil {
 			cli.Errorf("%v\n", err)
 		}
 		return
